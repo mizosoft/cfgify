@@ -1,6 +1,6 @@
 # go-cfg
 
-> *shamelessly written by Claude with guidance from me* - @mizosoft
+> *shamelessly written by Claude with "guidance" from me* - @mizosoft
 
 A command-line tool that pretty-prints the control-flow graph (CFG) of every function in a Go source file. Built on top of [`golang.org/x/tools/go/cfg`](https://pkg.go.dev/golang.org/x/tools/go/cfg) as a learning aid for understanding how Go's CFG package structures programs.
 
@@ -60,13 +60,4 @@ go-cfg [-pos] <file.go>
 
 # Include source positions
 ./go-cfg -pos sample/sample.go
-```
-
-## Project structure
-
-```
-go-cfg/
-├── main.go          # CFG printer
-└── sample/
-    └── sample.go    # Sample functions covering common control-flow patterns
 ```
