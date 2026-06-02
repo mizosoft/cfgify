@@ -1,0 +1,21 @@
+# Build output
+go-cfg
+
+# Go test cache and coverage
+*.test
+*.out
+coverage.html
+
+# Environment
+.env
+.env.*
+
+# macOS
+.DS_Store
+
+# JetBrains IDEs
+.idea/
+*.iml
+
+# VS Code
+.vscode/
