@@ -1,5 +1,7 @@
 # go-cfg
 
+> *shamelessly written by Claude with guidance from me* - @mizosoft
+
 A command-line tool that pretty-prints the control-flow graph (CFG) of every function in a Go source file. Built on top of [`golang.org/x/tools/go/cfg`](https://pkg.go.dev/golang.org/x/tools/go/cfg) as a learning aid for understanding how Go's CFG package structures programs.
 
 ## Example output
@@ -59,32 +61,6 @@ go-cfg [-pos] <file.go>
 # Include source positions
 ./go-cfg -pos sample/sample.go
 ```
-
-## Output anatomy
-
-Each block in the CFG is printed with:
-
-| Field | Description |
-|-------|-------------|
-| **Block N** | Block index and kind (e.g. `IfThen`, `ForBody`, `Unreachable`) |
-| `gov:` | The governing statement this block belongs to (first line only) |
-| `← pred:` | Predecessor blocks |
-| nodes | Statements/expressions in the block; the last node of a multi-successor block is labeled `cond:` |
-| successors | `↓ Block N` (fall-through), `true/false → Block N` (branch), or `(terminal)` |
-
-An **edge list** summary is printed after each function's blocks.
-
-### Block kinds and colors
-
-| Color | Kinds |
-|-------|-------|
-| Cyan | `IfThen`, `IfElse`, `IfDone` |
-| Blue | `ForBody`, `ForLoop`, `ForPost`, `ForDone`, `RangeBody`, `RangeLoop`, `RangeDone` |
-| Yellow | `SwitchCaseBody`, `SwitchDone`, `SwitchNextCase`, `SelectCaseBody`, `SelectDone`, `SelectAfterCase` |
-| Red | `Unreachable` |
-| White | `Body` (default) |
-
-Blocks tagged `[ENTRY]`, `[EXIT]`, or `[DEAD]` are highlighted accordingly.
 
 ## Project structure
 
