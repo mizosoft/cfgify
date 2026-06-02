@@ -1,4 +1,4 @@
-module go-cfg
+module cfgify
 
 go 1.23.0
 

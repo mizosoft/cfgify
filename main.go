@@ -30,7 +30,7 @@ const (
 func main() {
   showPos := flag.Bool("pos", false, "print source position of each node")
   flag.Usage = func() {
-    fmt.Fprintln(os.Stderr, "Usage: go-cfg [-pos] <file.go>")
+    fmt.Fprintln(os.Stderr, "Usage: cfgify [-pos] <file.go>")
     flag.PrintDefaults()
   }
   flag.Parse()

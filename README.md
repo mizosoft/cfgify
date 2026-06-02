@@ -1,4 +1,4 @@
-# go-cfg
+# cfgify
 
 > *shamelessly written by Claude with "guidance" from me* - @mizosoft
 
@@ -38,14 +38,14 @@ Requires Go 1.23+.
 
 ```bash
 git clone <repo>
-cd go-cfg
-go build -o go-cfg .
+cd cfgify
+go build -o cfgify .
 ```
 
 ## Usage
 
 ```
-go-cfg [-pos] <file.go>
+cfgify [-pos] <file.go>
 ```
 
 | Flag | Description |
@@ -56,8 +56,8 @@ go-cfg [-pos] <file.go>
 
 ```bash
 # Print CFGs for all functions in a file
-./go-cfg sample/sample.go
+./cfgify sample/sample.go
 
 # Include source positions
-./go-cfg -pos sample/sample.go
+./cfgify -pos sample/sample.go
 ```
