@@ -44,9 +44,12 @@ func printFunction(w io.Writer, filename string, fn cfgmodel.Function, opts Opti
 	fmt.Fprintf(w, "%s%s╚══════════════════════════════════════════╝%s\n\n", bold, cyan, reset)
 	fmt.Fprintf(w, "  %s%d blocks%s\n\n", gray, len(fn.Blocks), reset)
 
-	for i, b := range fn.Blocks {
-		isEntry := i == 0
-		isExit := i == len(fn.Blocks)-1
+	for _, b := range fn.Blocks {
+		// Per cfg convention the entry block is the one with Index 0. cfg
+		// has no single canonical exit — every block with no successors is
+		// a terminal point, already indicated by the `(terminal)` line
+		// printed below each such block.
+		isEntry := b.Index == 0
 		kc := kindColor(b.Kind)
 
 		// ── block header ──────────────────────────────────────────
@@ -54,8 +57,8 @@ func printFunction(w io.Writer, filename string, fn cfgmodel.Function, opts Opti
 		if isEntry {
 			tags = append(tags, green+"ENTRY"+reset)
 		}
-		if isExit {
-			tags = append(tags, red+"EXIT"+reset)
+		if len(b.Succs) == 0 {
+			tags = append(tags, red+"TERMINAL"+reset)
 		}
 		if !b.Live {
 			tags = append(tags, red+"DEAD"+reset)

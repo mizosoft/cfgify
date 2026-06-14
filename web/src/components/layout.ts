@@ -8,8 +8,8 @@ export type BlockNodeData = {
   kind: string;
   live: boolean;
   isEntry: boolean;
-  isExit: boolean;
-  governing?: string;
+  isTerminal: boolean;
+  preview?: string;
   nodeCount: number;
 };
 
@@ -41,7 +41,6 @@ export function layoutFunction(fn: Func): {
 
   dagre.layout(g);
 
-  const last = fn.blocks.length - 1;
   const nodes: FlowNode<BlockNodeData>[] = fn.blocks.map((b) => {
     const pos = g.node(String(b.index));
     return {
@@ -52,9 +51,15 @@ export function layoutFunction(fn: Func): {
         index: b.index,
         kind: b.kind,
         live: b.live,
+        // cfg's entry block is the one with Index 0; there is no canonical
+        // exit, so we mark every block with no successors as terminal.
         isEntry: b.index === 0,
-        isExit: b.index === last,
-        governing: b.governing?.text.split('\n')[0],
+        isTerminal: b.succs.length === 0,
+        // Show the block's own first node, not the governing statement.
+        // cfg assigns the same governing stmt to every block born from the
+        // same `if`/`for`/`switch`, which makes distinct blocks look like
+        // duplicates of each other.
+        preview: b.nodes[0]?.text.split('\n')[0],
         nodeCount: b.nodes.length,
       },
       draggable: false,

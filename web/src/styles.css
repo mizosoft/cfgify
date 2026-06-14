@@ -209,7 +209,7 @@ button.primary:disabled {
 }
 
 .block-node.entry { border-color: var(--ok); }
-.block-node.exit { border-color: var(--err); }
+.block-node.terminal { border-color: var(--err); }
 .block-node.dead { border-color: var(--warn); opacity: 0.7; }
 
 .block-node.highlighted {

@@ -10,7 +10,7 @@ export default function BlockNode({ data }: Props) {
   const { hovered, pinned } = useContext(HoverContext);
   const classes = ['block-node'];
   if (data.isEntry) classes.push('entry');
-  if (data.isExit) classes.push('exit');
+  if (data.isTerminal) classes.push('terminal');
   if (!data.live) classes.push('dead');
   if (data.index === hovered) classes.push('highlighted');
   if (data.index === pinned) classes.push('pinned');
@@ -23,9 +23,10 @@ export default function BlockNode({ data }: Props) {
         <span className="kind">{data.kind}</span>
       </div>
       <div className="body">
-        {data.governing && <span className="stmt">{data.governing}</span>}
+        {data.preview && <span className="stmt">{data.preview}</span>}
         <div>
           {data.nodeCount} node{data.nodeCount === 1 ? '' : 's'}
+          {data.isTerminal && ' · terminal'}
           {!data.live && ' · dead'}
         </div>
       </div>
