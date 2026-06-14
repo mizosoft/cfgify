@@ -3,27 +3,39 @@ package main
 import (
   "flag"
   "fmt"
+  "net/http"
   "os"
 
   "cfgify/internal/analyzer"
   _ "cfgify/internal/analyzer/golang"
   "cfgify/internal/printer"
+  "cfgify/internal/server"
 )
 
 func main() {
-  showPos := flag.Bool("pos", false, "print source position of each node")
-  flag.Usage = func() {
-    fmt.Fprintln(os.Stderr, "Usage: cfgify [-pos] <file.go>")
-    flag.PrintDefaults()
+  if len(os.Args) >= 2 && os.Args[1] == "serve" {
+    runServe(os.Args[2:])
+    return
   }
-  flag.Parse()
+  runAnalyze(os.Args[1:])
+}
 
-  if flag.NArg() < 1 {
-    flag.Usage()
+func runAnalyze(args []string) {
+  fs := flag.NewFlagSet("cfgify", flag.ExitOnError)
+  showPos := fs.Bool("pos", false, "print source position of each node")
+  fs.Usage = func() {
+    fmt.Fprintln(os.Stderr, "Usage: cfgify [-pos] <file.go>")
+    fmt.Fprintln(os.Stderr, "       cfgify serve [--port 8080]")
+    fs.PrintDefaults()
+  }
+  _ = fs.Parse(args)
+
+  if fs.NArg() < 1 {
+    fs.Usage()
     os.Exit(1)
   }
 
-  filename := flag.Arg(0)
+  filename := fs.Arg(0)
   src, err := os.ReadFile(filename)
   if err != nil {
     fmt.Fprintf(os.Stderr, "read error: %v\n", err)
@@ -48,4 +60,24 @@ func main() {
   }
 
   printer.Print(os.Stdout, result, printer.Options{ShowPos: *showPos})
+}
+
+func runServe(args []string) {
+  fs := flag.NewFlagSet("cfgify serve", flag.ExitOnError)
+  port := fs.Int("port", 8080, "port to listen on")
+  addr := fs.String("addr", "127.0.0.1", "address to bind to")
+  _ = fs.Parse(args)
+
+  srv, err := server.New()
+  if err != nil {
+    fmt.Fprintf(os.Stderr, "server init: %v\n", err)
+    os.Exit(1)
+  }
+
+  listen := fmt.Sprintf("%s:%d", *addr, *port)
+  fmt.Fprintf(os.Stderr, "cfgify serve listening on http://%s\n", listen)
+  if err := http.ListenAndServe(listen, srv.Handler()); err != nil {
+    fmt.Fprintf(os.Stderr, "server: %v\n", err)
+    os.Exit(1)
+  }
 }
