@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import Editor from './components/Editor';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Editor, { type EditorHandle } from './components/Editor';
 import Graph from './components/Graph';
 import FunctionTabs from './components/FunctionTabs';
+import BlockPanel from './components/BlockPanel';
 import { analyze } from './api';
+import { blockRange, findBlock, findBlockAt, findFunctionAt } from './cfg';
 import type { AnalyzeResult } from './types';
 
 const DEFAULT_SOURCE = `package sample
@@ -27,32 +29,120 @@ type Status =
   | { kind: 'ok'; text: string }
   | { kind: 'err'; text: string };
 
+type Pin = { functionIndex: number; blockIndex: number };
+
 export default function App() {
   const [source, setSource] = useState(DEFAULT_SOURCE);
   const [result, setResult] = useState<AnalyzeResult | null>(null);
   const [activeFn, setActiveFn] = useState(0);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
 
-  const onAnalyze = async () => {
+  // Hovered block index (in activeFn). Driven by editor cursor and graph hover;
+  // last interaction wins. Cleared when the cursor leaves any block.
+  const [hovered, setHovered] = useState<number | null>(null);
+
+  // Pinned block from a graph click; opens the details panel.
+  const [pinned, setPinned] = useState<Pin | null>(null);
+
+  const editorRef = useRef<EditorHandle | null>(null);
+
+  const onAnalyze = useCallback(async () => {
     setStatus({ kind: 'loading' });
     try {
       const r = await analyze('go', source);
       setResult(r);
       setActiveFn(0);
+      setHovered(null);
+      setPinned(null);
       const n = r.functions.length;
       setStatus({ kind: 'ok', text: `${n} function${n === 1 ? '' : 's'}` });
     } catch (e) {
       setStatus({ kind: 'err', text: e instanceof Error ? e.message : String(e) });
     }
-  };
+  }, [source]);
+
+  // Editor cursor → block highlight (+ auto-switch function tab).
+  const onCursorChange = useCallback(
+    (offset: number) => {
+      if (!result) return;
+      const fnIdx = findFunctionAt(result.functions, offset);
+      if (fnIdx === null) {
+        setHovered(null);
+        return;
+      }
+      const blockIdx = findBlockAt(result.functions[fnIdx], offset);
+      if (fnIdx !== activeFn) setActiveFn(fnIdx);
+      setHovered(blockIdx);
+    },
+    [result, activeFn],
+  );
+
+  // Graph hover → block highlight.
+  const onGraphHover = useCallback((index: number | null) => {
+    setHovered(index);
+  }, []);
+
+  // Graph click → pin selection, open details, scroll editor to range.
+  const onGraphClick = useCallback(
+    (index: number) => {
+      if (!result) return;
+      const fn = result.functions[activeFn];
+      const block = findBlock(fn, index);
+      if (!block) return;
+      setPinned({ functionIndex: activeFn, blockIndex: index });
+      const r = blockRange(block);
+      if (r) editorRef.current?.scrollTo(r.startOffset, r.endOffset);
+    },
+    [result, activeFn],
+  );
+
+  // Switching tabs manually clears hover; pinned panel hides if it's for
+  // another function but reappears when the user returns to that tab.
+  const onSelectTab = useCallback((index: number) => {
+    setActiveFn(index);
+    setHovered(null);
+  }, []);
 
   const fn = result?.functions[activeFn];
+
+  // Compute editor decoration range for the hovered block (or pinned block
+  // in the active function when nothing is hovered).
+  const editorHighlight = useMemo(() => {
+    if (!fn) return null;
+    const candidate =
+      hovered !== null
+        ? hovered
+        : pinned && pinned.functionIndex === activeFn
+          ? pinned.blockIndex
+          : null;
+    if (candidate === null) return null;
+    const block = findBlock(fn, candidate);
+    if (!block) return null;
+    const r = blockRange(block);
+    if (!r) return null;
+    return { from: r.startOffset, to: r.endOffset };
+  }, [fn, hovered, pinned, activeFn]);
+
+  // Re-analyze on Ctrl/Cmd+Enter anywhere on the page.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        onAnalyze();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onAnalyze]);
+
+  const panelVisible = pinned && pinned.functionIndex === activeFn && fn;
 
   return (
     <div className="app">
       <header className="app-header">
         <h1>cfgify</h1>
         <span className="tag">control-flow graph visualizer</span>
+        <span className="tag dim">⌘/Ctrl+Enter to analyze</span>
       </header>
       <main className="app-main">
         <section className="panel">
@@ -61,7 +151,13 @@ export default function App() {
             <span>go</span>
           </div>
           <div className="panel-body">
-            <Editor value={source} onChange={setSource} />
+            <Editor
+              ref={editorRef}
+              value={source}
+              onChange={setSource}
+              onCursorChange={onCursorChange}
+              highlight={editorHighlight}
+            />
             <div className="toolbar">
               <button
                 className="primary"
@@ -70,9 +166,7 @@ export default function App() {
               >
                 Analyze
               </button>
-              <span
-                className={`status ${status.kind === 'err' ? 'err' : ''}`}
-              >
+              <span className={`status ${status.kind === 'err' ? 'err' : ''}`}>
                 {status.kind === 'idle' && 'idle'}
                 {status.kind === 'loading' && 'analyzing…'}
                 {status.kind === 'ok' && status.text}
@@ -92,11 +186,29 @@ export default function App() {
               <FunctionTabs
                 functions={result.functions}
                 active={activeFn}
-                onSelect={setActiveFn}
+                onSelect={onSelectTab}
               />
             )}
             {fn ? (
-              <Graph fn={fn} />
+              <div className="graph-and-panel">
+                <Graph
+                  fn={fn}
+                  hoveredBlock={hovered}
+                  pinnedBlock={
+                    pinned && pinned.functionIndex === activeFn ? pinned.blockIndex : null
+                  }
+                  onHover={onGraphHover}
+                  onClick={onGraphClick}
+                />
+                {panelVisible && (
+                  <BlockPanel
+                    fn={fn}
+                    blockIndex={pinned!.blockIndex}
+                    onClose={() => setPinned(null)}
+                    onJumpToBlock={(i) => onGraphClick(i)}
+                  />
+                )}
+              </div>
             ) : (
               <div className="empty">Click Analyze to render the CFG.</div>
             )}

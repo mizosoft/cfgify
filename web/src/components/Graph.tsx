@@ -1,24 +1,61 @@
 import { useMemo } from 'react';
-import { ReactFlow, Background, Controls, MiniMap } from '@xyflow/react';
+import { Background, Controls, MiniMap, ReactFlow } from '@xyflow/react';
+import type { Node as FlowNode, NodeMouseHandler } from '@xyflow/react';
 import type { Func } from '../types';
-import { layoutFunction } from './layout';
+import { layoutFunction, type BlockNodeData } from './layout';
 import BlockNode from './BlockNode';
 
 const nodeTypes = { block: BlockNode };
 
-type Props = { fn: Func };
+type Props = {
+  fn: Func;
+  hoveredBlock: number | null;
+  pinnedBlock: number | null;
+  onHover: (index: number | null) => void;
+  onClick: (index: number) => void;
+};
 
-export default function Graph({ fn }: Props) {
-  const { nodes, edges } = useMemo(() => layoutFunction(fn), [fn]);
+export default function Graph({ fn, hoveredBlock, pinnedBlock, onHover, onClick }: Props) {
+  const base = useMemo(() => layoutFunction(fn), [fn]);
+
+  const nodes = useMemo(
+    () =>
+      base.nodes.map((n) => ({
+        ...n,
+        data: {
+          ...n.data,
+          highlighted: n.data.index === hoveredBlock,
+          pinned: n.data.index === pinnedBlock,
+        },
+      })),
+    [base.nodes, hoveredBlock, pinnedBlock],
+  );
+
+  const handleEnter: NodeMouseHandler<FlowNode<BlockNodeData>> = (_, node) => {
+    onHover(node.data.index);
+  };
+  const handleLeave: NodeMouseHandler<FlowNode<BlockNodeData>> = () => {
+    onHover(null);
+  };
+  const handleClick: NodeMouseHandler<FlowNode<BlockNodeData>> = (_, node) => {
+    onClick(node.data.index);
+  };
+
   return (
     <div className="graph">
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={base.edges}
         nodeTypes={nodeTypes}
         fitView
         minZoom={0.2}
         maxZoom={2}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        onNodeMouseEnter={handleEnter}
+        onNodeMouseLeave={handleLeave}
+        onNodeClick={handleClick}
         proOptions={{ hideAttribution: true }}
       >
         <Background gap={16} size={1} color="#2a2f3a" />

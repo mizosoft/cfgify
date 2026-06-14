@@ -1,5 +1,5 @@
 import { Handle, Position } from '@xyflow/react';
-import type { NodeProps, Node } from '@xyflow/react';
+import type { Node, NodeProps } from '@xyflow/react';
 import type { BlockNodeData } from './layout';
 
 type Props = NodeProps<Node<BlockNodeData>>;
@@ -9,6 +9,8 @@ export default function BlockNode({ data }: Props) {
   if (data.isEntry) classes.push('entry');
   if (data.isExit) classes.push('exit');
   if (!data.live) classes.push('dead');
+  if (data.highlighted) classes.push('highlighted');
+  if (data.pinned) classes.push('pinned');
 
   return (
     <div className={classes.join(' ')}>

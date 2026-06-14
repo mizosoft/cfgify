@@ -11,6 +11,8 @@ export type BlockNodeData = {
   isExit: boolean;
   governing?: string;
   nodeCount: number;
+  highlighted: boolean;
+  pinned: boolean;
 };
 
 const NODE_WIDTH = 220;
@@ -56,7 +58,11 @@ export function layoutFunction(fn: Func): {
         isExit: b.index === last,
         governing: b.governing?.text.split('\n')[0],
         nodeCount: b.nodes.length,
+        highlighted: false,
+        pinned: false,
       },
+      draggable: false,
+      selectable: false,
     };
   });
 
