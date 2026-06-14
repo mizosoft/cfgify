@@ -20,4 +20,4 @@ coverage.html
 # VS Code
 .vscode/
 # Added by goreleaser init:
-dist/
+/dist/
