@@ -19,5 +19,12 @@ coverage.html
 
 # VS Code
 .vscode/
+
+# Frontend
+web/node_modules/
+web/dist/assets/
+web/*.tsbuildinfo
+web/vite.config.js
+web/vite.config.d.ts
 # Added by goreleaser init:
 /dist/
