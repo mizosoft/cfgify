@@ -1,16 +1,19 @@
+import { useContext } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { Node, NodeProps } from '@xyflow/react';
 import type { BlockNodeData } from './layout';
+import { HoverContext } from './hover';
 
 type Props = NodeProps<Node<BlockNodeData>>;
 
 export default function BlockNode({ data }: Props) {
+  const { hovered, pinned } = useContext(HoverContext);
   const classes = ['block-node'];
   if (data.isEntry) classes.push('entry');
   if (data.isExit) classes.push('exit');
   if (!data.live) classes.push('dead');
-  if (data.highlighted) classes.push('highlighted');
-  if (data.pinned) classes.push('pinned');
+  if (data.index === hovered) classes.push('highlighted');
+  if (data.index === pinned) classes.push('pinned');
 
   return (
     <div className={classes.join(' ')}>
