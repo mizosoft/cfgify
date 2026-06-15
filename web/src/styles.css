@@ -250,10 +250,8 @@ button.primary:disabled {
   outline-offset: 2px;
 }
 
-.cm-cfg-highlight {
-  background: rgba(122, 167, 255, 0.18);
-  border-bottom: 1px solid rgba(122, 167, 255, 0.6);
-  border-radius: 2px;
+.cm-cfg-line-highlight {
+  background: rgba(122, 167, 255, 0.15);
 }
 
 .graph-and-panel {

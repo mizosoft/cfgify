@@ -20,10 +20,14 @@ import { oneDark } from '@codemirror/theme-one-dark';
 
 const goLang = StreamLanguage.define(go);
 
-// CodeMirror state effect + field that paints a single range highlight.
+// CodeMirror state effect + field that paints a range as full-width line
+// highlights. Mark decorations would start mid-line at the first node's
+// column (after indentation) while subsequent lines included it, producing
+// a visually ragged left edge. Line decorations give every line in the
+// range the same full-width background.
 const setHighlightRange = StateEffect.define<{ from: number; to: number } | null>();
 
-const highlightMark = Decoration.mark({ class: 'cm-cfg-highlight' });
+const lineHighlight = Decoration.line({ class: 'cm-cfg-line-highlight' });
 
 const highlightField = StateField.define<DecorationSet>({
   create: () => Decoration.none,
@@ -33,11 +37,20 @@ const highlightField = StateField.define<DecorationSet>({
       if (eff.is(setHighlightRange)) {
         if (eff.value === null) {
           next = Decoration.none;
-        } else {
-          const { from, to } = clampRange(eff.value, tr.state.doc.length);
-          if (from < to) next = Decoration.set([highlightMark.range(from, to)]);
-          else next = Decoration.none;
+          continue;
         }
+        const { from, to } = clampRange(eff.value, tr.state.doc.length);
+        if (from >= to) {
+          next = Decoration.none;
+          continue;
+        }
+        const startLine = tr.state.doc.lineAt(from).number;
+        const endLine = tr.state.doc.lineAt(to).number;
+        const decos = [];
+        for (let n = startLine; n <= endLine; n++) {
+          decos.push(lineHighlight.range(tr.state.doc.line(n).from));
+        }
+        next = Decoration.set(decos);
       }
     }
     return next;
