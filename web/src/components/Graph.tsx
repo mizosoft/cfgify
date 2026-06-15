@@ -12,16 +12,28 @@ type Props = {
   fn: Func;
   hoveredBlock: number | null;
   pinnedBlock: number | null;
+  showUnreachable: boolean;
   onHover: (index: number | null) => void;
   onClick: (index: number) => void;
 };
 
-export default function Graph({ fn, hoveredBlock, pinnedBlock, onHover, onClick }: Props) {
-  // The nodes array only changes when the function changes. Hover/pinned
-  // state goes through HoverContext so block-level highlight updates don't
-  // re-render the ReactFlow node tree (which previously caused flicker as
-  // mouseenter/leave events fought during re-renders).
-  const { nodes, edges } = useMemo(() => layoutFunction(fn), [fn]);
+export default function Graph({
+  fn,
+  hoveredBlock,
+  pinnedBlock,
+  showUnreachable,
+  onHover,
+  onClick,
+}: Props) {
+  // The nodes array only changes when the function or the visibility toggle
+  // changes. Hover/pinned state goes through HoverContext so block-level
+  // highlight updates don't re-render the ReactFlow node tree (which
+  // previously caused flicker as mouseenter/leave events fought during
+  // re-renders).
+  const { nodes, edges } = useMemo(
+    () => layoutFunction(fn, { hideUnreachable: !showUnreachable }),
+    [fn, showUnreachable],
+  );
   const hoverState = useMemo(
     () => ({ hovered: hoveredBlock, pinned: pinnedBlock }),
     [hoveredBlock, pinnedBlock],

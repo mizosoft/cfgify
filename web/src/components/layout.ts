@@ -22,26 +22,39 @@ const EDGE_COLORS: Record<string, string> = {
 };
 const EDGE_DEFAULT = '#7d8590';
 
-export function layoutFunction(fn: Func): {
+export type LayoutOptions = {
+  // When true, blocks with Live=false (cfg's "unreachable from entry") and
+  // any edge touching them are dropped before layout.
+  hideUnreachable?: boolean;
+};
+
+export function layoutFunction(
+  fn: Func,
+  opts: LayoutOptions = {},
+): {
   nodes: FlowNode<BlockNodeData>[];
   edges: FlowEdge[];
 } {
+  const visibleBlocks = opts.hideUnreachable ? fn.blocks.filter((b) => b.live) : fn.blocks;
+  const visible = new Set(visibleBlocks.map((b) => b.index));
+
   const g = new dagre.graphlib.Graph();
   g.setGraph({ rankdir: 'TB', nodesep: 40, ranksep: 60, marginx: 20, marginy: 20 });
   g.setDefaultEdgeLabel(() => ({}));
 
-  for (const b of fn.blocks) {
+  for (const b of visibleBlocks) {
     g.setNode(String(b.index), { width: NODE_WIDTH, height: NODE_HEIGHT });
   }
-  for (const b of fn.blocks) {
+  for (const b of visibleBlocks) {
     for (const e of b.succs) {
+      if (!visible.has(e.to)) continue;
       g.setEdge(String(b.index), String(e.to));
     }
   }
 
   dagre.layout(g);
 
-  const nodes: FlowNode<BlockNodeData>[] = fn.blocks.map((b) => {
+  const nodes: FlowNode<BlockNodeData>[] = visibleBlocks.map((b) => {
     const pos = g.node(String(b.index));
     return {
       id: String(b.index),
@@ -68,8 +81,9 @@ export function layoutFunction(fn: Func): {
   });
 
   const edges: FlowEdge[] = [];
-  for (const b of fn.blocks) {
+  for (const b of visibleBlocks) {
     for (const e of b.succs) {
+      if (!visible.has(e.to)) continue;
       const color = (e.label && EDGE_COLORS[e.label]) || EDGE_DEFAULT;
       edges.push({
         id: `${b.index}->${e.to}:${e.label ?? ''}`,

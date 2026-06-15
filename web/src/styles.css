@@ -95,6 +95,35 @@ body {
   flex-direction: column;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle input {
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.toggle:hover { color: var(--text); }
+
+.muted { color: var(--muted); }
+
 .editor {
   flex: 1;
   min-height: 0;

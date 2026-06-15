@@ -44,6 +44,11 @@ export default function App() {
   // Pinned block from a graph click; opens the details panel.
   const [pinned, setPinned] = useState<Pin | null>(null);
 
+  // Whether to show cfg's unreachable (Live=false) blocks. Off by default
+  // because cfg emits synthetic bookkeeping blocks after every terminator,
+  // which clutters the view without representing executable code.
+  const [showUnreachable, setShowUnreachable] = useState(false);
+
   const editorRef = useRef<EditorHandle | null>(null);
 
   const onAnalyze = useCallback(async () => {
@@ -135,7 +140,12 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler);
   }, [onAnalyze]);
 
-  const panelVisible = pinned && pinned.functionIndex === activeFn && fn;
+  const hiddenCount = fn && !showUnreachable ? fn.blocks.filter((b) => !b.live).length : 0;
+
+  const pinnedBlock =
+    pinned && pinned.functionIndex === activeFn ? findBlock(fn!, pinned.blockIndex) : undefined;
+  const pinnedHiddenByFilter = !!pinnedBlock && !showUnreachable && !pinnedBlock.live;
+  const panelVisible = !!pinnedBlock && !pinnedHiddenByFilter;
 
   return (
     <div className="app">
@@ -179,7 +189,22 @@ export default function App() {
         <section className="panel">
           <div className="panel-header">
             <span>Control-flow graph</span>
-            {fn && <span>{fn.blocks.length} blocks</span>}
+            <div className="header-actions">
+              <label className="toggle" title="Show cfg's unreachable bookkeeping blocks">
+                <input
+                  type="checkbox"
+                  checked={showUnreachable}
+                  onChange={(e) => setShowUnreachable(e.target.checked)}
+                />
+                <span>Show unreachable</span>
+              </label>
+              {fn && (
+                <span className="muted">
+                  {fn.blocks.length} blocks
+                  {hiddenCount > 0 && ` · ${hiddenCount} hidden`}
+                </span>
+              )}
+            </div>
           </div>
           <div className="panel-body">
             {result && (
@@ -197,6 +222,7 @@ export default function App() {
                   pinnedBlock={
                     pinned && pinned.functionIndex === activeFn ? pinned.blockIndex : null
                   }
+                  showUnreachable={showUnreachable}
                   onHover={onGraphHover}
                   onClick={onGraphClick}
                 />
