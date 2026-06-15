@@ -13,7 +13,7 @@ import {
   lineNumbers,
 } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { StreamLanguage, bracketMatching, indentOnInput } from '@codemirror/language';
 import { go } from '@codemirror/legacy-modes/mode/go';
 import { oneDark } from '@codemirror/theme-one-dark';
@@ -120,7 +120,10 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
         goLang,
         oneDark,
         highlightField,
-        keymap.of([...defaultKeymap, ...historyKeymap]),
+        // indentWithTab makes Tab/Shift-Tab indent/dedent instead of moving
+        // browser focus. CodeMirror leaves Tab alone by default for a11y;
+        // we opt in here because this is a code editor.
+        keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) {
             onChangeRef.current(u.state.doc.toString());
