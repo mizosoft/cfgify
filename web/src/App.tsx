@@ -25,11 +25,15 @@ func EarlyReturn(x int) int {
 
 type Status =
   | { kind: 'idle' }
+  | { kind: 'editing' }
   | { kind: 'loading' }
   | { kind: 'ok'; text: string }
   | { kind: 'err'; text: string };
 
 type Pin = { functionIndex: number; blockIndex: number };
+
+// How long the source must be idle (no keystrokes) before we re-analyze.
+const ANALYZE_DEBOUNCE_MS = 400;
 
 export default function App() {
   const [source, setSource] = useState(DEFAULT_SOURCE);
@@ -51,20 +55,45 @@ export default function App() {
 
   const editorRef = useRef<EditorHandle | null>(null);
 
-  const onAnalyze = useCallback(async () => {
+  // Monotonic id for analyze requests. Each call captures its id locally so
+  // a slow in-flight request whose response arrives after a newer one was
+  // dispatched is dropped instead of overwriting fresher state.
+  const reqIdRef = useRef(0);
+  // Whether this is the first effect run; we analyze immediately on mount
+  // instead of after a debounce delay.
+  const isFirstRun = useRef(true);
+
+  const performAnalyze = useCallback(async (src: string) => {
+    const id = ++reqIdRef.current;
     setStatus({ kind: 'loading' });
     try {
-      const r = await analyze('go', source);
+      const r = await analyze('go', src);
+      if (reqIdRef.current !== id) return;
       setResult(r);
-      setActiveFn(0);
       setHovered(null);
       setPinned(null);
+      // Preserve the function tab the user was on if it's still valid;
+      // otherwise fall back to the first function.
+      setActiveFn((prev) => (prev < r.functions.length ? prev : 0));
       const n = r.functions.length;
       setStatus({ kind: 'ok', text: `${n} function${n === 1 ? '' : 's'}` });
     } catch (e) {
+      if (reqIdRef.current !== id) return;
       setStatus({ kind: 'err', text: e instanceof Error ? e.message : String(e) });
     }
-  }, [source]);
+  }, []);
+
+  // Auto-analyze: immediately on mount, debounced on each source change.
+  useEffect(() => {
+    const first = isFirstRun.current;
+    isFirstRun.current = false;
+    if (!first) setStatus({ kind: 'editing' });
+    const timer = window.setTimeout(
+      () => performAnalyze(source),
+      first ? 0 : ANALYZE_DEBOUNCE_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [source, performAnalyze]);
 
   // Editor cursor → block highlight (+ auto-switch function tab).
   const onCursorChange = useCallback(
@@ -128,17 +157,17 @@ export default function App() {
     return { from: r.startOffset, to: r.endOffset };
   }, [fn, hovered, pinned, activeFn]);
 
-  // Re-analyze on Ctrl/Cmd+Enter anywhere on the page.
+  // Force an immediate re-analyze on ⌘/Ctrl+Enter (bypasses the debounce).
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
-        onAnalyze();
+        performAnalyze(source);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onAnalyze]);
+  }, [performAnalyze, source]);
 
   const hiddenCount = fn && !showUnreachable ? fn.blocks.filter((b) => !b.live).length : 0;
 
@@ -152,13 +181,22 @@ export default function App() {
       <header className="app-header">
         <h1>cfgify</h1>
         <span className="tag">control-flow graph visualizer</span>
-        <span className="tag dim">⌘/Ctrl+Enter to analyze</span>
+        <span className="tag dim">⌘/Ctrl+Enter to re-analyze now</span>
       </header>
       <main className="app-main">
         <section className="panel">
           <div className="panel-header">
             <span>Source</span>
-            <span>go</span>
+            <span
+              className={`status ${status.kind === 'err' ? 'err' : ''}`}
+              title={status.kind === 'err' ? status.text : undefined}
+            >
+              {status.kind === 'idle' && 'idle'}
+              {status.kind === 'editing' && 'editing…'}
+              {status.kind === 'loading' && 'analyzing…'}
+              {status.kind === 'ok' && status.text}
+              {status.kind === 'err' && status.text}
+            </span>
           </div>
           <div className="panel-body">
             <Editor
@@ -168,21 +206,6 @@ export default function App() {
               onCursorChange={onCursorChange}
               highlight={editorHighlight}
             />
-            <div className="toolbar">
-              <button
-                className="primary"
-                onClick={onAnalyze}
-                disabled={status.kind === 'loading'}
-              >
-                Analyze
-              </button>
-              <span className={`status ${status.kind === 'err' ? 'err' : ''}`}>
-                {status.kind === 'idle' && 'idle'}
-                {status.kind === 'loading' && 'analyzing…'}
-                {status.kind === 'ok' && status.text}
-                {status.kind === 'err' && status.text}
-              </span>
-            </div>
           </div>
         </section>
 
