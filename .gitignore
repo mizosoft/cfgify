@@ -13,6 +13,11 @@ coverage.html
 # macOS
 .DS_Store
 
+# Local scratch — personal notes and screenshots dragged into the repo root
+/ISSUES.md
+/Screenshot*.png
+/Screenshot*.jpg
+
 # JetBrains IDEs
 .idea/
 *.iml
