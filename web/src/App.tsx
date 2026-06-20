@@ -6,23 +6,9 @@ import BlockPanel from './components/BlockPanel';
 import SplitPane from './components/SplitPane';
 import { analyze } from './api';
 import { blockRange, findBlock, findBlockAt, findFunctionAt } from './cfg';
+import { SAMPLES, DEFAULT_SOURCE } from './samples';
+import { buildShareUrl, loadInitialSource, saveSource } from './share';
 import type { AnalyzeResult } from './types';
-
-const DEFAULT_SOURCE = `package sample
-
-import "fmt"
-
-func EarlyReturn(x int) int {
-\tif x < 0 {
-\t\treturn -1
-\t}
-\tif x == 0 {
-\t\treturn 0
-\t}
-\tfmt.Println(x)
-\treturn 1
-}
-`;
 
 type Status =
   | { kind: 'idle' }
@@ -37,10 +23,12 @@ type Pin = { functionIndex: number; blockIndex: number };
 const ANALYZE_DEBOUNCE_MS = 400;
 
 export default function App() {
-  const [source, setSource] = useState(DEFAULT_SOURCE);
+  const [source, setSource] = useState(() => loadInitialSource(DEFAULT_SOURCE));
   const [result, setResult] = useState<AnalyzeResult | null>(null);
   const [activeFn, setActiveFn] = useState(0);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
+  // Transient "Copied!" feedback on the Share button.
+  const [shared, setShared] = useState(false);
 
   // Hovered block index (in activeFn). Driven by editor cursor and graph hover;
   // last interaction wins. Cleared when the cursor leaves any block.
@@ -95,6 +83,24 @@ export default function App() {
     );
     return () => window.clearTimeout(timer);
   }, [source, performAnalyze]);
+
+  // Mirror the source to localStorage so a reload restores the last edit.
+  useEffect(() => {
+    saveSource(source);
+  }, [source]);
+
+  // Copy a shareable link (source encoded in the URL hash) to the clipboard.
+  const onShare = useCallback(async () => {
+    const url = buildShareUrl(source);
+    history.replaceState(null, '', url);
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // clipboard may be blocked; the address bar still holds the link
+    }
+    setShared(true);
+    window.setTimeout(() => setShared(false), 1500);
+  }, [source]);
 
   // Editor cursor → block highlight (+ auto-switch function tab).
   const onCursorChange = useCallback(
@@ -172,6 +178,10 @@ export default function App() {
 
   const hiddenCount = fn && !showUnreachable ? fn.blocks.filter((b) => !b.live).length : 0;
 
+  // Pull the line number out of a parser error (e.g. "input.go:6:5: ...") so
+  // the editor can mark it. Null when the error has no position.
+  const errorLine = status.kind === 'err' ? parseErrorLine(status.text) : null;
+
   const pinnedBlock =
     pinned && pinned.functionIndex === activeFn ? findBlock(fn!, pinned.blockIndex) : undefined;
   const pinnedHiddenByFilter = !!pinnedBlock && !showUnreachable && !pinnedBlock.live;
@@ -203,7 +213,30 @@ export default function App() {
             <section className="panel">
               <div className="panel-header">
                 <span>Source</span>
-                <StatusPill status={status} />
+                <div className="header-actions">
+                  <select
+                    className="sample-select"
+                    value=""
+                    onChange={(e) => {
+                      const s = SAMPLES[Number(e.target.value)];
+                      if (s) setSource(s.code);
+                    }}
+                    title="Load a sample snippet"
+                  >
+                    <option value="" disabled>
+                      Load sample…
+                    </option>
+                    {SAMPLES.map((s, i) => (
+                      <option key={s.name} value={i}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button className="ghost-btn" onClick={onShare} title="Copy a shareable link">
+                    {shared ? 'Copied!' : 'Share'}
+                  </button>
+                  <StatusPill status={status} />
+                </div>
               </div>
               <div className="panel-body">
                 <Editor
@@ -212,6 +245,7 @@ export default function App() {
                   onChange={setSource}
                   onCursorChange={onCursorChange}
                   highlight={editorHighlight}
+                  errorLine={errorLine}
                 />
               </div>
             </section>
@@ -303,6 +337,13 @@ function StatusPill({ status }: { status: Status }) {
       <span className="label">{text}</span>
     </span>
   );
+}
+
+// Extracts the 1-based line number from a Go parser error message of the form
+// "file:line:col: message". Returns null when no position is present.
+function parseErrorLine(msg: string): number | null {
+  const m = msg.match(/:(\d+):\d+:/);
+  return m ? Number(m[1]) : null;
 }
 
 // Colour key for the graph's node borders.

@@ -65,6 +65,30 @@ function clampRange(r: { from: number; to: number }, docLength: number) {
   };
 }
 
+// Paints a single line red to mark where the analyzer reported a parse error.
+const setErrorLine = StateEffect.define<number | null>();
+
+const errorLineDeco = Decoration.line({ class: 'cm-cfg-error-line' });
+
+const errorField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    let next = deco.map(tr.changes);
+    for (const eff of tr.effects) {
+      if (eff.is(setErrorLine)) {
+        const ln = eff.value;
+        if (ln === null || ln < 1 || ln > tr.state.doc.lines) {
+          next = Decoration.none;
+        } else {
+          next = Decoration.set([errorLineDeco.range(tr.state.doc.line(ln).from)]);
+        }
+      }
+    }
+    return next;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
 export type EditorHandle = {
   scrollTo: (from: number, to: number) => void;
 };
@@ -74,10 +98,11 @@ type Props = {
   onChange: (value: string) => void;
   onCursorChange?: (offset: number) => void;
   highlight?: { from: number; to: number } | null;
+  errorLine?: number | null;
 };
 
 const Editor = forwardRef<EditorHandle, Props>(function Editor(
-  { value, onChange, onCursorChange, highlight },
+  { value, onChange, onCursorChange, highlight, errorLine },
   ref,
 ) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -120,6 +145,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
         goLang,
         oneDark,
         highlightField,
+        errorField,
         // indentWithTab makes Tab/Shift-Tab indent/dedent instead of moving
         // browser focus. CodeMirror leaves Tab alone by default for a11y;
         // we opt in here because this is a code editor.
@@ -165,6 +191,13 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     if (!view) return;
     view.dispatch({ effects: setHighlightRange.of(highlight ?? null) });
   }, [highlight]);
+
+  // Sync the parse-error line marker.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: setErrorLine.of(errorLine ?? null) });
+  }, [errorLine]);
 
   return <div className="editor" ref={hostRef} />;
 });
