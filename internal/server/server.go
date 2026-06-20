@@ -5,7 +5,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"io/fs"
+	"io"
 	"net/http"
 
 	"cfgify/internal/analyzer"
@@ -20,17 +20,18 @@ type Server struct {
 	mux *http.ServeMux
 }
 
-// New builds a Server with /api/* routes and the embedded frontend mounted at /.
+// New builds a Server with /api/* routes. The frontend is mounted at / when it
+// was embedded (release builds, -tags embed_assets); otherwise / serves a stub
+// explaining how to get the UI.
 func New() (*Server, error) {
-	dist, err := fs.Sub(web.Dist, "dist")
-	if err != nil {
-		return nil, fmt.Errorf("locate embedded frontend: %w", err)
-	}
-
 	s := &Server{mux: http.NewServeMux()}
 	s.mux.HandleFunc("POST /api/analyze", s.handleAnalyze)
 	s.mux.HandleFunc("GET /api/languages", s.handleLanguages)
-	s.mux.Handle("/", http.FileServerFS(dist))
+	if web.Assets != nil {
+		s.mux.Handle("/", http.FileServerFS(web.Assets))
+	} else {
+		s.mux.HandleFunc("/", handleDevStub)
+	}
 	return s, nil
 }
 
@@ -87,6 +88,33 @@ func (s *Server) handleAnalyze(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleLanguages(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, languagesResponse{Languages: analyzer.Languages()})
 }
+
+// handleDevStub responds at / for tag-less builds where the frontend is not
+// embedded. In development the UI is served by Vite (`npm run dev`), which
+// proxies /api here; this page is what you see if you hit the API port directly.
+func handleDevStub(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = io.WriteString(w, devStubHTML)
+}
+
+const devStubHTML = `<!doctype html>
+<meta charset="utf-8">
+<title>cfgify — UI not embedded</title>
+<body style="font-family:system-ui;max-width:42rem;margin:4rem auto;padding:0 1rem;line-height:1.6">
+<h1>cfgify</h1>
+<p>This binary was built without the frontend embedded, so there is no UI here.
+The API is live at <code>POST /api/analyze</code>.</p>
+<p>To get the UI:</p>
+<ul>
+<li><b>Develop:</b> run <code>npm run dev</code> in <code>web/</code> and open the Vite dev server (it proxies <code>/api</code> here).</li>
+<li><b>Embed it:</b> build with <code>make build</code> or <code>go build -tags embed_assets</code> (builds the frontend first).</li>
+</ul>
+</body>
+`
 
 func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")

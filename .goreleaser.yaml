@@ -6,12 +6,18 @@ version: 2
 before:
   hooks:
     - go mod tidy
+    - cmd: npm ci
+      dir: web
+    - cmd: npm run build
+      dir: web
 
 builds:
   - binary: cfgify
-    main: ./...
+    main: .
     env:
       - CGO_ENABLED=0
+    tags:
+      - embed_assets
     goos:
       - linux
       - windows

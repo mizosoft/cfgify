@@ -26,8 +26,10 @@ coverage.html
 .vscode/
 
 # Frontend
+# web/dist/ is a build artifact, embedded only by release builds (embed_assets
+# tag). It is built by CI/goreleaser/`make web`, never committed.
 web/node_modules/
-web/dist/assets/
+web/dist/
 web/*.tsbuildinfo
 web/vite.config.js
 web/vite.config.d.ts
