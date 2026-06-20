@@ -20,6 +20,13 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # goreleaser's before-hooks build the frontend, so Node must be available.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
