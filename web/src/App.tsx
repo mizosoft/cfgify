@@ -304,6 +304,7 @@ export default function App() {
                   <FunctionTabs
                     functions={result.functions}
                     active={activeFn}
+                    showUnreachable={showUnreachable}
                     onSelect={onSelectTab}
                   />
                 )}
