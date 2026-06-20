@@ -3,6 +3,7 @@ import Editor, { type EditorHandle } from './components/Editor';
 import Graph from './components/Graph';
 import FunctionTabs from './components/FunctionTabs';
 import BlockPanel from './components/BlockPanel';
+import SplitPane from './components/SplitPane';
 import { analyze } from './api';
 import { blockRange, findBlock, findBlockAt, findFunctionAt } from './cfg';
 import type { AnalyzeResult } from './types';
@@ -179,91 +180,147 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>cfgify</h1>
+        <div className="brand">
+          <svg className="logo" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <circle cx="12" cy="4" r="2.4" />
+            <circle cx="5" cy="19" r="2.4" />
+            <circle cx="19" cy="19" r="2.4" />
+            <path d="M12 6.4 L6 16.6 M12 6.4 L18 16.6" />
+          </svg>
+          <h1>cfgify</h1>
+        </div>
         <span className="tag">control-flow graph visualizer</span>
-        <span className="tag dim">⌘/Ctrl+Enter to re-analyze now</span>
+        <span className="hint">
+          <kbd>⌘/Ctrl</kbd>
+          <kbd>Enter</kbd>
+          to re-analyze
+        </span>
       </header>
       <main className="app-main">
-        <section className="panel">
-          <div className="panel-header">
-            <span>Source</span>
-            <span
-              className={`status ${status.kind === 'err' ? 'err' : ''}`}
-              title={status.kind === 'err' ? status.text : undefined}
-            >
-              {status.kind === 'idle' && 'idle'}
-              {status.kind === 'editing' && 'editing…'}
-              {status.kind === 'loading' && 'analyzing…'}
-              {status.kind === 'ok' && status.text}
-              {status.kind === 'err' && status.text}
-            </span>
-          </div>
-          <div className="panel-body">
-            <Editor
-              ref={editorRef}
-              value={source}
-              onChange={setSource}
-              onCursorChange={onCursorChange}
-              highlight={editorHighlight}
-            />
-          </div>
-        </section>
-
-        <section className="panel">
-          <div className="panel-header">
-            <span>Control-flow graph</span>
-            <div className="header-actions">
-              <label className="toggle" title="Show cfg's unreachable bookkeeping blocks">
-                <input
-                  type="checkbox"
-                  checked={showUnreachable}
-                  onChange={(e) => setShowUnreachable(e.target.checked)}
+        <SplitPane
+          storageKey="cfgify.split"
+          left={
+            <section className="panel">
+              <div className="panel-header">
+                <span>Source</span>
+                <StatusPill status={status} />
+              </div>
+              <div className="panel-body">
+                <Editor
+                  ref={editorRef}
+                  value={source}
+                  onChange={setSource}
+                  onCursorChange={onCursorChange}
+                  highlight={editorHighlight}
                 />
-                <span>Show unreachable</span>
-              </label>
-              {fn && (
-                <span className="muted">
-                  {fn.blocks.length} blocks
-                  {hiddenCount > 0 && ` · ${hiddenCount} hidden`}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="panel-body">
-            {result && (
-              <FunctionTabs
-                functions={result.functions}
-                active={activeFn}
-                onSelect={onSelectTab}
-              />
-            )}
-            {fn ? (
-              <div className="graph-and-panel">
-                <Graph
-                  fn={fn}
-                  hoveredBlock={hovered}
-                  pinnedBlock={
-                    pinned && pinned.functionIndex === activeFn ? pinned.blockIndex : null
-                  }
-                  showUnreachable={showUnreachable}
-                  onHover={onGraphHover}
-                  onClick={onGraphClick}
-                />
-                {panelVisible && (
-                  <BlockPanel
-                    fn={fn}
-                    blockIndex={pinned!.blockIndex}
-                    onClose={() => setPinned(null)}
-                    onJumpToBlock={(i) => onGraphClick(i)}
+              </div>
+            </section>
+          }
+          right={
+            <section className="panel">
+              <div className="panel-header">
+                <span>Control-flow graph</span>
+                <div className="header-actions">
+                  <Legend />
+                  <label className="toggle" title="Show cfg's unreachable bookkeeping blocks">
+                    <input
+                      type="checkbox"
+                      checked={showUnreachable}
+                      onChange={(e) => setShowUnreachable(e.target.checked)}
+                    />
+                    <span>Show unreachable</span>
+                  </label>
+                  {fn && (
+                    <span className="muted">
+                      {fn.blocks.length} blocks
+                      {hiddenCount > 0 && ` · ${hiddenCount} hidden`}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="panel-body">
+                {result && (
+                  <FunctionTabs
+                    functions={result.functions}
+                    active={activeFn}
+                    onSelect={onSelectTab}
                   />
                 )}
+                {fn ? (
+                  <div className="graph-and-panel">
+                    <Graph
+                      fn={fn}
+                      hoveredBlock={hovered}
+                      pinnedBlock={
+                        pinned && pinned.functionIndex === activeFn ? pinned.blockIndex : null
+                      }
+                      showUnreachable={showUnreachable}
+                      onHover={onGraphHover}
+                      onClick={onGraphClick}
+                    />
+                    {panelVisible && (
+                      <BlockPanel
+                        fn={fn}
+                        blockIndex={pinned!.blockIndex}
+                        onClose={() => setPinned(null)}
+                        onJumpToBlock={(i) => onGraphClick(i)}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="empty">
+                    {status.kind === 'err'
+                      ? 'Fix the error above to render the CFG.'
+                      : 'Write a function to see its control-flow graph.'}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="empty">Click Analyze to render the CFG.</div>
-            )}
-          </div>
-        </section>
+            </section>
+          }
+        />
       </main>
     </div>
+  );
+}
+
+// A compact status indicator: a colored dot (pulsing while editing/analyzing)
+// plus a short label. Mirrors the Status union in this file.
+function StatusPill({ status }: { status: Status }) {
+  const text =
+    status.kind === 'idle'
+      ? 'idle'
+      : status.kind === 'editing'
+        ? 'editing…'
+        : status.kind === 'loading'
+          ? 'analyzing…'
+          : status.text;
+  return (
+    <span
+      className={`status-pill ${status.kind}`}
+      title={status.kind === 'err' ? text : undefined}
+    >
+      <span className="dot" />
+      <span className="label">{text}</span>
+    </span>
+  );
+}
+
+// Colour key for the graph's node borders.
+function Legend() {
+  return (
+    <span className="legend" aria-hidden="true">
+      <span className="legend-item">
+        <span className="swatch entry" />
+        entry
+      </span>
+      <span className="legend-item">
+        <span className="swatch terminal" />
+        terminal
+      </span>
+      <span className="legend-item">
+        <span className="swatch dead" />
+        unreachable
+      </span>
+    </span>
   );
 }

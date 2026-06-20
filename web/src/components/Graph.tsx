@@ -65,7 +65,20 @@ export default function Graph({
         >
           <Background gap={16} size={1} color="#2a2f3a" />
           <Controls showInteractive={false} />
-          <MiniMap pannable zoomable maskColor="rgba(15,17,21,0.7)" />
+          <MiniMap
+            pannable
+            zoomable
+            bgColor="#0f1115"
+            maskColor="rgba(15,17,21,0.6)"
+            nodeStrokeColor="#2a2f3a"
+            nodeColor={(n) => {
+              const d = n.data as BlockNodeData;
+              if (d.isEntry) return '#3fb950';
+              if (d.isTerminal) return '#f85149';
+              if (!d.live) return '#d29922';
+              return '#30363d';
+            }}
+          />
         </ReactFlow>
       </HoverContext.Provider>
     </div>

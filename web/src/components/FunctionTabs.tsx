@@ -18,6 +18,7 @@ export default function FunctionTabs({ functions, active, onSelect }: Props) {
           title={`${fn.blocks.length} block${fn.blocks.length === 1 ? '' : 's'}`}
         >
           {fn.name}
+          <span className="count">{fn.blocks.length}</span>
         </button>
       ))}
     </div>
