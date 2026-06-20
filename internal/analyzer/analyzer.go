@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sort"
 
-	"cfgify/internal/cfgmodel"
+	"github.com/mizosoft/cfgify/internal/cfgmodel"
 )
 
 // Analyzer converts source bytes into a language-specific CFG model.

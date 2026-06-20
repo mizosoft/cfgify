@@ -6,16 +6,30 @@ import (
 	"net/http"
 	"os"
 
-	"cfgify/internal/analyzer"
-	_ "cfgify/internal/analyzer/golang"
-	"cfgify/internal/printer"
-	"cfgify/internal/server"
+	"github.com/mizosoft/cfgify/internal/analyzer"
+	_ "github.com/mizosoft/cfgify/internal/analyzer/golang"
+	"github.com/mizosoft/cfgify/internal/printer"
+	"github.com/mizosoft/cfgify/internal/server"
+)
+
+// Build metadata, overridden at release time via -ldflags (see .goreleaser.yaml
+// and the Makefile). The defaults apply to plain `go build` / `go install`.
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
 )
 
 func main() {
-	if len(os.Args) >= 2 && os.Args[1] == "serve" {
-		runServe(os.Args[2:])
-		return
+	if len(os.Args) >= 2 {
+		switch os.Args[1] {
+		case "serve":
+			runServe(os.Args[2:])
+			return
+		case "version", "-v", "--version":
+			fmt.Printf("cfgify %s (commit %s, built %s)\n", version, commit, date)
+			return
+		}
 	}
 	runAnalyze(os.Args[1:])
 }
@@ -26,6 +40,7 @@ func runAnalyze(args []string) {
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: cfgify [-pos] <file.go>")
 		fmt.Fprintln(os.Stderr, "       cfgify serve [--port 8080]")
+		fmt.Fprintln(os.Stderr, "       cfgify version")
 		fs.PrintDefaults()
 	}
 	_ = fs.Parse(args)

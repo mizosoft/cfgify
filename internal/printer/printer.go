@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"cfgify/internal/cfgmodel"
+	"github.com/mizosoft/cfgify/internal/cfgmodel"
 )
 
 // ANSI terminal colors.

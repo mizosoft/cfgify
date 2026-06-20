@@ -1,4 +1,4 @@
-module cfgify
+module github.com/mizosoft/cfgify
 
 go 1.23.0
 

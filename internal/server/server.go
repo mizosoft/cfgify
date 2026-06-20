@@ -8,8 +8,8 @@ import (
 	"io"
 	"net/http"
 
-	"cfgify/internal/analyzer"
-	"cfgify/web"
+	"github.com/mizosoft/cfgify/internal/analyzer"
+	"github.com/mizosoft/cfgify/web"
 )
 
 // maxRequestBytes caps the size of an /api/analyze request body.

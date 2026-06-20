@@ -13,8 +13,8 @@ import (
 
 	"golang.org/x/tools/go/cfg"
 
-	"cfgify/internal/analyzer"
-	"cfgify/internal/cfgmodel"
+	"github.com/mizosoft/cfgify/internal/analyzer"
+	"github.com/mizosoft/cfgify/internal/cfgmodel"
 )
 
 const languageID = "go"
