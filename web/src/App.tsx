@@ -29,6 +29,11 @@ export default function App() {
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   // Transient "Copied!" feedback on the Share button.
   const [shared, setShared] = useState(false);
+  // Color theme. The pre-paint script in index.html seeds data-theme from
+  // localStorage; read it back here so React stays in sync.
+  const [theme, setTheme] = useState<'dark' | 'light'>(
+    () => (document.documentElement.dataset.theme as 'dark' | 'light') || 'dark',
+  );
 
   // Hovered block index (in activeFn). Driven by editor cursor and graph hover;
   // last interaction wins. Cleared when the cursor leaves any block.
@@ -101,6 +106,19 @@ export default function App() {
     setShared(true);
     window.setTimeout(() => setShared(false), 1500);
   }, [source]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((t) => {
+      const next = t === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      try {
+        localStorage.setItem('cfgify.theme', next);
+      } catch {
+        // ignore private-mode errors
+      }
+      return next;
+    });
+  }, []);
 
   // Editor cursor → block highlight (+ auto-switch function tab).
   const onCursorChange = useCallback(
@@ -205,6 +223,14 @@ export default function App() {
           <kbd>Enter</kbd>
           to re-analyze
         </span>
+        <button
+          className="ghost-btn theme-toggle"
+          onClick={toggleTheme}
+          title="Toggle light / dark theme"
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark' ? '☀' : '☾'}
+        </button>
       </header>
       <main className="app-main">
         <SplitPane
@@ -246,6 +272,7 @@ export default function App() {
                   onCursorChange={onCursorChange}
                   highlight={editorHighlight}
                   errorLine={errorLine}
+                  theme={theme}
                 />
               </div>
             </section>
@@ -289,6 +316,7 @@ export default function App() {
                         pinned && pinned.functionIndex === activeFn ? pinned.blockIndex : null
                       }
                       showUnreachable={showUnreachable}
+                      theme={theme}
                       onHover={onGraphHover}
                       onClick={onGraphClick}
                     />

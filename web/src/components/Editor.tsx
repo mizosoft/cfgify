@@ -4,21 +4,47 @@ import {
   useImperativeHandle,
   useRef,
 } from 'react';
-import { EditorSelection, EditorState, StateEffect, StateField } from '@codemirror/state';
+import {
+  Compartment,
+  EditorSelection,
+  EditorState,
+  StateEffect,
+  StateField,
+} from '@codemirror/state';
 import {
   Decoration,
   EditorView,
   highlightActiveLine,
+    
   keymap,
   lineNumbers,
 } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { StreamLanguage, bracketMatching, indentOnInput } from '@codemirror/language';
+import {
+  StreamLanguage,
+  bracketMatching,
+  defaultHighlightStyle,
+  indentOnInput,
+  syntaxHighlighting,
+} from '@codemirror/language';
 import { go } from '@codemirror/legacy-modes/mode/go';
 import { oneDark } from '@codemirror/theme-one-dark';
 
 const goLang = StreamLanguage.define(go);
+
+export type EditorTheme = 'dark' | 'light';
+
+// Editor theming lives in a compartment so it can be swapped at runtime without
+// rebuilding the whole editor. Dark uses One Dark; light uses CodeMirror's
+// default light highlight style.
+const themeCompartment = new Compartment();
+
+function themeExtensions(theme: EditorTheme) {
+  return theme === 'light'
+    ? [syntaxHighlighting(defaultHighlightStyle)]
+    : [oneDark];
+}
 
 // CodeMirror state effect + field that paints a range as full-width line
 // highlights. Mark decorations would start mid-line at the first node's
@@ -99,12 +125,16 @@ type Props = {
   onCursorChange?: (offset: number) => void;
   highlight?: { from: number; to: number } | null;
   errorLine?: number | null;
+  theme?: EditorTheme;
 };
 
 const Editor = forwardRef<EditorHandle, Props>(function Editor(
-  { value, onChange, onCursorChange, highlight, errorLine },
+  { value, onChange, onCursorChange, highlight, errorLine, theme = 'dark' },
   ref,
 ) {
+  // Captured once for the initial editor build; later changes go through the
+  // compartment reconfigure effect below.
+  const initialTheme = useRef(theme);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -143,7 +173,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
         bracketMatching(),
         indentOnInput(),
         goLang,
-        oneDark,
+        themeCompartment.of(themeExtensions(initialTheme.current)),
         highlightField,
         errorField,
         // indentWithTab makes Tab/Shift-Tab indent/dedent instead of moving
@@ -198,6 +228,13 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     if (!view) return;
     view.dispatch({ effects: setErrorLine.of(errorLine ?? null) });
   }, [errorLine]);
+
+  // Swap the editor color theme without rebuilding the editor.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: themeCompartment.reconfigure(themeExtensions(theme)) });
+  }, [theme]);
 
   return <div className="editor" ref={hostRef} />;
 });
